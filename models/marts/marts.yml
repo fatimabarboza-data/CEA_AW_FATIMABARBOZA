@@ -1,0 +1,179 @@
+version: 2
+
+models:
+  - name: fct_vendas
+    description: >
+      Tabela fato de vendas da Adventure Works. Grão: uma linha por item de pedido
+      (cada produto dentro de um pedido). Base para todas as análises de vendas do painel.
+    columns:
+      - name: pedido_item_id
+        description: "Chave primária. Identificador do item do pedido (salesorderdetailid)."
+        data_tests: [unique, not_null]
+      - name: pedido_id
+        description: "Identificador do pedido (salesorderid). Usar contagem distinta para o número de pedidos."
+        data_tests: [not_null]
+      - name: produto_id
+        description: "Chave do produto vendido."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_produtos')
+                field: produto_id
+      - name: cliente_id
+        description: "Chave do cliente que fez o pedido."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_clientes')
+                field: cliente_id
+      - name: endereco_id
+        description: "Chave do endereço de entrega do pedido (cidade, estado e país)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_localidades')
+                field: endereco_id
+      - name: cartao_id
+        description: "Chave do cartão de crédito. 0 = pedido sem cartão."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_cartoes')
+                field: cartao_id
+      - name: motivo_venda_sk
+        description: "Chave da combinação de motivos de venda do pedido."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_motivos_venda')
+                field: motivo_venda_sk
+      - name: data_pedido
+        description: "Data do pedido (orderdate)."
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_datas')
+                field: data
+      - name: status_pedido
+        description: "Situação do pedido traduzida do código do ERP."
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ['Em processamento', 'Aprovado', 'Em espera', 'Rejeitado', 'Enviado', 'Cancelado']
+      - name: quantidade
+        description: "Quantidade comprada do produto (orderqty)."
+      - name: preco_unitario
+        description: "Preço unitário do produto no pedido (unitprice)."
+      - name: desconto_percentual
+        description: "Desconto aplicado ao preço unitário, em percentual (unitpricediscount). Ex.: 0.02 = 2%."
+      - name: valor_bruto
+        description: "Valor total negociado = preço unitário x quantidade."
+      - name: valor_desconto
+        description: "Valor do desconto = valor bruto x desconto percentual."
+      - name: valor_liquido
+        description: >
+          Valor total negociado líquido = preço unitário x quantidade x (1 - desconto).
+          Obs.: o dicionário de dados trazia a fórmula 'unitprice * orderqty - (1 - discount)',
+          que subtrairia um número fixo; a fórmula correta aplica o desconto como percentual.
+
+  - name: dim_produtos
+    description: "Dimensão de produtos, com subcategoria e categoria."
+    columns:
+      - name: produto_id
+        description: "Chave primária do produto (productid)."
+        data_tests: [unique, not_null]
+      - name: nome_produto
+        description: "Nome do produto (product.name)."
+      - name: codigo_produto
+        description: "Código do produto no ERP."
+      - name: cor
+        description: "Cor do produto."
+      - name: subcategoria
+        description: "Subcategoria do produto."
+      - name: categoria
+        description: "Categoria do produto (Bikes, Components, Clothing, Accessories)."
+
+  - name: dim_clientes
+    description: "Dimensão de clientes. O cliente pode ser uma pessoa física ou uma loja revendedora."
+    columns:
+      - name: cliente_id
+        description: "Chave primária do cliente (customerid)."
+        data_tests: [unique, not_null]
+      - name: nome_cliente
+        description: "Nome da pessoa (person.name) ou, na falta dela, nome da loja."
+      - name: tipo_cliente
+        description: "Pessoa física ou Loja."
+
+  - name: dim_localidades
+    description: "Dimensão de localidade a partir do endereço de entrega: cidade, estado e país."
+    columns:
+      - name: endereco_id
+        description: "Chave primária do endereço (addressid)."
+        data_tests: [unique, not_null]
+      - name: cidade
+        description: "Cidade (address.city)."
+      - name: estado
+        description: "Estado / província (stateprovince.name)."
+      - name: sigla_estado
+        description: "Sigla do estado."
+      - name: pais
+        description: "País (countryregion.name)."
+      - name: pais_codigo
+        description: "Código do país."
+
+  - name: dim_cartoes
+    description: "Dimensão de cartões de crédito. Inclui a linha 0 = 'Sem cartão'."
+    columns:
+      - name: cartao_id
+        description: "Chave primária do cartão (creditcardid)."
+        data_tests: [unique, not_null]
+      - name: tipo_cartao
+        description: "Bandeira / tipo do cartão (cardtype)."
+
+  - name: dim_motivos_venda
+    description: >
+      Dimensão de motivos de venda. Cada linha é uma combinação de motivos de um pedido,
+      porque um pedido pode ter mais de um motivo. As colunas tem_* indicam se a combinação
+      contém determinado motivo.
+    columns:
+      - name: motivo_venda_sk
+        description: "Chave primária (hash md5 da combinação de motivos)."
+        data_tests: [unique, not_null]
+      - name: motivos_venda
+        description: "Motivos do pedido separados por vírgula, ou 'Sem motivo informado'."
+      - name: tem_promocao
+        description: "Verdadeiro se o pedido tem o motivo de promoção (On Promotion)."
+
+  - name: dim_datas
+    description: "Dimensão de calendário do período de vendas."
+    columns:
+      - name: data
+        description: "Chave primária: data."
+        data_tests: [unique, not_null]
+      - name: ano
+        description: "Ano."
+      - name: trimestre
+        description: "Trimestre (1 a 4)."
+      - name: mes
+        description: "Mês (1 a 12)."
+      - name: nome_mes
+        description: "Nome do mês em português."
+      - name: ano_mes
+        description: "Ano e mês no formato AAAA-MM."
+      - name: dia
+        description: "Dia do mês."
+
+  - name: int_motivos_por_pedido
+    description: "Camada intermediária (schema intermediate): junta todos os motivos de venda de cada pedido em uma única linha, para não duplicar valores na fato."
+    columns:
+      - name: pedido_id
+        description: "Identificador do pedido."
+        data_tests: [unique, not_null]
+      - name: motivos_venda
+        description: "Motivos do pedido em ordem alfabética, separados por vírgula."

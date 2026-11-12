@@ -1,0 +1,108 @@
+version: 2
+
+sources:
+  - name: adventure_works
+    description: "Dados brutos do ERP da Adventure Works, carregados no Databricks (catálogo fea_academy) pelo notebook de ingestão da Indicium."
+    database: fea_academy
+    schema: adventure_works
+    tables:
+      - name: sales_salesorderheader
+        description: "Cabeçalho dos pedidos de venda (1 linha por pedido)."
+        columns:
+          - name: salesorderid
+            data_tests: [unique, not_null]
+
+      - name: sales_salesorderdetail
+        description: "Itens dos pedidos de venda (1 linha por produto dentro do pedido)."
+        columns:
+          - name: salesorderdetailid
+            data_tests: [unique, not_null]
+          - name: salesorderid
+            data_tests:
+              - not_null
+              - relationships:
+                  arguments:
+                    to: source('adventure_works', 'sales_salesorderheader')
+                    field: salesorderid
+
+      - name: sales_customer
+        description: "Clientes (pessoa física ou loja)."
+        columns:
+          - name: customerid
+            data_tests: [unique, not_null]
+
+      - name: person_person
+        description: "Cadastro de pessoas (clientes, funcionários, contatos)."
+        columns:
+          - name: businessentityid
+            data_tests: [unique, not_null]
+
+      - name: sales_store
+        description: "Lojas revendedoras que compram da Adventure Works."
+        columns:
+          - name: businessentityid
+            data_tests: [unique, not_null]
+
+      - name: person_address
+        description: "Endereços."
+        columns:
+          - name: addressid
+            data_tests: [unique, not_null]
+
+      - name: person_stateprovince
+        description: "Estados / províncias."
+        columns:
+          - name: stateprovinceid
+            data_tests: [unique, not_null]
+
+      - name: person_countryregion
+        description: "Países."
+        columns:
+          - name: countryregioncode
+            description: >
+              Código do país. Achado de qualidade: o código da Namíbia ('NA') chegou nulo
+              na ingestão (o pandas lê o texto 'NA' como valor vazio). Mantive o teste como
+              alerta (warn) para registrar o problema na fonte e corrigi no stg_erp__paises.
+            data_tests:
+              - unique
+              - not_null:
+                  config:
+                    severity: warn
+
+      - name: sales_creditcard
+        description: "Cartões de crédito usados nos pedidos."
+        columns:
+          - name: creditcardid
+            data_tests: [unique, not_null]
+
+      - name: sales_salesreason
+        description: "Cadastro de motivos de venda."
+        columns:
+          - name: salesreasonid
+            data_tests: [unique, not_null]
+
+      - name: sales_salesorderheadersalesreason
+        description: "Ligação pedido x motivo de venda (um pedido pode ter mais de um motivo)."
+        columns:
+          - name: salesorderid
+            data_tests: [not_null]
+          - name: salesreasonid
+            data_tests: [not_null]
+
+      - name: production_product
+        description: "Cadastro de produtos."
+        columns:
+          - name: productid
+            data_tests: [unique, not_null]
+
+      - name: production_productsubcategory
+        description: "Subcategorias de produto."
+        columns:
+          - name: productsubcategoryid
+            data_tests: [unique, not_null]
+
+      - name: production_productcategory
+        description: "Categorias de produto."
+        columns:
+          - name: productcategoryid
+            data_tests: [unique, not_null]
